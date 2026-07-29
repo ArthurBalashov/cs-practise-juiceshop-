@@ -20,12 +20,14 @@ docker run --rm -p 3000:3000 bkimminich/juice-shop
 
 Після старту контейнера відкрив у браузері `http://localhost:3000` і побачив головну сторінку магазину з переліком «соків»:
 
-![Головна сторінка OWASP Juice Shop після першого запуску]
+<img width="1942" height="1327" alt="12" src="https://github.com/user-attachments/assets/71704d97-adaf-4366-a62c-bc57cc4bacee" />
+
 ### Крок 2. Пошук панелі Score Board
 
 Посилання на сторінку зі списком усіх челенджів у Juice Shop навмисно не винесене в головне меню — його потрібно знайти самостійно. Відкрив інструменти розробника (F12) і переглянув вихідний JS-код застосунку (зокрема `main.js`), де знайшов згадку про `score-board`. Перейшовши напряму за адресою `http://localhost:3000/#/score-board`, одразу отримав перший зарахований челендж — за сам факт знаходження цієї сторінки:
 
-![Знайдена панель Score Board з першим зарахованим челенджем](screenshots/juice-shop-scoreboard-found.png)
+<img width="1946" height="1301" alt="13" src="https://github.com/user-attachments/assets/623ccd62-5a09-4327-b71c-4e1cb4339be2" />
+
 
 ### Крок 3. DOM-based XSS через поле пошуку
 
@@ -37,7 +39,8 @@ docker run --rm -p 3000:3000 bkimminich/juice-shop
 
 Застосунок одразу зарахував челендж «DOM XSS» — саме сам факт вставки такого рядка в пошук уже призводить до виконання скрипта в контексті сторінки:
 
-![Челендж DOM XSS зарахований після введення iframe-пейлоада в пошук](screenshots/juice-shop-dom-xss-solved.png)
+<img width="1935" height="1268" alt="14" src="https://github.com/user-attachments/assets/0fc4002f-0e4d-4f56-ab2a-61ffc53df5b9" />
+
 
 Після основного завдання є ще й «бонусний» варіант — той самий принцип, але з реальним корисним навантаженням (вбудований плеєр SoundCloud замість простого `alert`). Підставив довший iframe із посиланням на трек, і система зарахувала другий, «бонусний» челендж поверх основного:
 
@@ -45,7 +48,8 @@ docker run --rm -p 3000:3000 bkimminich/juice-shop
 <iframe width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/771984076&color=%23ff5500&auto_play=true&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
 ```
 
-![Зарахований бонусний XSS-пейлоад із вбудованим плеєром SoundCloud](screenshots/juice-shop-bonus-payload.png)
+<img width="1936" height="1269" alt="15" src="https://github.com/user-attachments/assets/6a0165f5-5d60-4195-9168-3dc1e555f914" />
+
 
 ### Крок 4. Витік конфіденційних даних через неправильну конфігурацію сервера
 
@@ -55,11 +59,13 @@ docker run --rm -p 3000:3000 bkimminich/juice-shop
 
 Сервер, однак, блокує пряме завантаження деяких із цих файлів. Обійшов це обмеження технікою **Poison Null Byte** — додав до назви файлу закодований нуль-байт (`%2500`) перед розширенням `.md`, і сервер, замість того щоб відмовити в доступі, віддав повний вміст файлу:
 
-![Обхід блокування завантаження файлу технікою Poison Null Byte](screenshots/juice-shop-ftp-poison-null-byte.png)
+<img width="1938" height="1306" alt="16" src="https://github.com/user-attachments/assets/679000ba-be07-45ca-99f3-6b35d1a8eef9" />
+
 
 Той самий трюк спрацював і для решти файлів у директорії. У підсумку лише завдяки цій одній техніці одразу зарахувалось кілька челенджів — «Forgotten Developer Backup», «Poison Null Byte» та «Misplaced Signature File»:
 
-![Кілька челенджів зараховано одночасно завдяки обходу через Poison Null Byte](screenshots/juice-shop-ftp-results.png)
+<img width="1931" height="1096" alt="17" src="https://github.com/user-attachments/assets/2fe9d71d-afe7-46ba-85ff-c3d745b374e8" />
+
 
 ### Крок 5. Обхід автентифікації адміністратора через SQL-ін'єкцію
 
@@ -71,7 +77,8 @@ docker run --rm -p 3000:3000 bkimminich/juice-shop
 
 а в полі пароля — будь-яке довільне значення (сервер туди навіть не заглядає, оскільки запит обривається раніше):
 
-![Спроба входу з SQL-ін'єкцією в полі email](screenshots/juice-shop-admin-login-sqli.png)
+<img width="1944" height="1320" alt="23" src="https://github.com/user-attachments/assets/27475efe-e09b-4fbe-973a-f6efb050c6e5" />
+
 
 **Чому це працює.** Запит до бази даних на бекенді, найімовірніше, побудований конкатенацією рядків і виглядає приблизно так:
 
@@ -81,7 +88,8 @@ SELECT * FROM Users WHERE email = '' OR 1=1--' AND password = '...'
 
 Умова `1=1` завжди істинна, а `--` перетворює все, що йде після неї (включно з перевіркою пароля), на коментар. У результаті запит фактично повертає першого користувача з таблиці — в базі Juice Shop це саме адміністратор, тож вхід відбувається одразу під адмінським акаунтом. Це підтвердив і сам застосунок, зарахувавши челендж «Login Admin», після чого в кошику вже видно активну сесію під новим акаунтом:
 
-![Челендж Login Admin зарахований, вхід виконано під обліковим записом адміністратора](screenshots/juice-shop-login-admin-solved.png)
+<img width="1945" height="1146" alt="54" src="https://github.com/user-attachments/assets/2396eca5-793f-4902-a6ac-c2b3d0f509d8" />
+
 
 ## Інструменти, які знадобилися
 
